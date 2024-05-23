@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authorize and Get Documents</title>
+</head>
+<body>
+    <button id="authorize-btn">Authorize</button>
+    <button id="get-documents-btn">Get Documents</button>
+    <script>
+        const clientId = 'ZT598DACF0';
+        const clientSecret = '257fd6ee3098f1aac423';
+        const redirectUri = window.location.origin + '/callback';
+
+        document.getElementById('authorize-btn').addEventListener('click', startAuth);
+        document.getElementById('get-documents-btn').addEventListener('click', getDocuments);
+
+        async function startAuth() {
+            const codeVerifier = generateRandomString(128);
+            const codeChallenge = await generateCodeChallenge(codeVerifier);
+            const state = generateRandomString(16);
+
+            localStorage.setItem('codeVerifier', codeVerifier);
+            localStorage.setItem('state', state);
+
+            const authUrl = `https://digilocker.meripehchaan.gov.in/public/oauth2/1/authorize?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=openid files.issueddocs&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`;
+
+            window.location.href = authUrl;
+        }
+
+        async function handleOAuthCallback() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const authCode = urlParams.get('code');
+            const state = urlParams.get('state');
+
+            if (!authCode || !state) {
+                return;
+            }
+
+            const savedState = localStorage.getItem('state');
+            const codeVerifier = localStorage.getItem('codeVerifier');
+
+            if (state !== savedState) {
+                console.error('Invalid state');
+                return;
+            }
+
+            const tokenResponse = await fetch('https://digilocker.meripehchaan.gov.in/public/oauth2/1/token', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: new URLSearchParams({
+                    code: authCode,
+                    grant_type: 'authorization_code',
+                    client_id: clientId,
+                    client_secret: clientSecret,
+                    redirect_uri: redirectUri,
+                    code_verifier: codeVerifier
+                })
+            });
+
+            if (!tokenResponse.ok) {
+                console.error('Failed to exchange token');
+                return;
+            }
+
+            const tokenData = await tokenResponse.json();
+            localStorage.setItem('accessToken', tokenData.access_token);
+
+            window.history.pushState({}, document.title, "/");
+        }
+
+        async function getDocuments() {
+            const accessToken = localStorage.getItem('accessToken');
+
+            if (!accessToken) {
+                console.error('Not authorized');
+                return;
+            }
+
+            const documentsResponse = await fetch('https://digilocker.meripehchaan.gov.in/public/issued/docs', {
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`
+                }
+            });
+
+            if (!documentsResponse.ok) {
+                console.error('Failed to list documents');
+                return;
+            }
+
+            const documents = await documentsResponse.json();
+
+            if (documents.length === 0) {
+                console.error('No documents found');
+                return;
+            }
+
+            const documentUri = documents[0].uri;
+            const fileResponse = await fetch(`https://digilocker.meripehchaan.gov.in/public/file?uri=${encodeURIComponent(documentUri)}`, {
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`
+                }
+            });
+
+            if (!fileResponse.ok) {
+                console.error('Failed to download document');
+                return;
+            }
+
+            const blob = await fileResponse.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'document.pdf';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        }
+
+        function generateRandomString(length) {
+            const array = new Uint32Array(length);
+            window.crypto.getRandomValues(array);
+            return Array.from(array, dec => ('0' + dec.toString(36)).substr(-2)).join('').substr(0, length);
+        }
+
+        async function generateCodeChallenge(codeVerifier) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(codeVerifier);
+            const digest = await crypto.subtle.digest('SHA-256', data);
+            return btoa(String.fromCharCode(...new Uint8Array(digest)))
+                .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        }
+
+        if (window.location.pathname === '/callback') {
+            handleOAuthCallback();
+        }
+    </script>
+</body>
+</html>
