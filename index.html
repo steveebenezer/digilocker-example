@@ -12,6 +12,7 @@
         const clientId = 'GA181ED3AB';
         const clientSecret = '2e39316da552c894cd77';
         const redirectUri = 'https://steveebenezer.github.io/digilocker-example/callback';
+        const initialAppUrl = 'https://steveebenezer.github.io/digilocker-example'; // Store the initial app URL
 
         document.getElementById('authorize-btn').addEventListener('click', startAuth);
         document.getElementById('get-documents-btn').addEventListener('click', getDocuments);
@@ -23,6 +24,7 @@
 
             localStorage.setItem('codeVerifier', codeVerifier);
             localStorage.setItem('state', state);
+            localStorage.setItem('initialAppUrl', initialAppUrl); // Save the initial app URL
 
             const authUrl = `https://digilocker.meripehchaan.gov.in/public/oauth2/1/authorize?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=files.issueddocs&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`;
 
@@ -69,7 +71,9 @@
             const tokenData = await tokenResponse.json();
             localStorage.setItem('accessToken', tokenData.access_token);
 
-            window.history.pushState({}, document.title, "/");
+            // Redirect back to the initial app URL
+            const initialAppUrl = localStorage.getItem('initialAppUrl');
+            window.location.href = initialAppUrl;
         }
 
         async function getDocuments() {
@@ -140,4 +144,3 @@
     </script>
 </body>
 </html>
-
