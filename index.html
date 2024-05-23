@@ -24,7 +24,7 @@
             localStorage.setItem('codeVerifier', codeVerifier);
             localStorage.setItem('state', state);
 
-            const authUrl = `https://digilocker.meripehchaan.gov.in/public/oauth2/1/authorize?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=openid files.issueddocs&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`;
+            const authUrl = `https://digilocker.meripehchaan.gov.in/public/oauth2/1/authorize?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=files.issueddocs&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`;
 
             window.location.href = authUrl;
         }
